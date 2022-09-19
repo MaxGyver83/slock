@@ -23,6 +23,7 @@ ${OBJ}: config.h config.mk arg.h util.h
 config.h:
 	@echo creating $@ from config.def.h
 	@cp config.def.h $@
+	@grep '^nobody' /etc/group && sed -i s/nogroup/nobody/ $@
 
 slock: ${OBJ}
 	@echo CC -o $@
