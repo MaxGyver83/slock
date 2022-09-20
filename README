@@ -2,6 +2,15 @@ slock - simple screen locker
 ============================
 simple screen locker utility for X.
 
+This is my personal fork with these changes (on the 'custom' branch):
+
+- Apply 'slock-foreground-and-background' patch (blurred background with colored dwm logo)
+- Change default color from black to gray
+- Red dwm logo only after wrong password (not after Escape)
+- Orange dwm logo when CapsLock is pressed (based on 'capscolor' patch)
+- Alternate color during password input: shades of blue (or orange)
+- Makefile: Use group 'nobody' instead of 'nogroup' when available (Arch Linux)
+
 
 Requirements
 ------------
