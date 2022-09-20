@@ -23,6 +23,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xft/Xft.h>
+#include <X11/XKBlib.h>
 #include <Imlib2.h>
 
 #include "arg.h"
@@ -34,6 +35,7 @@ enum {
 	INIT,
 	INPUT,
 	FAILED,
+	CAPSLOCK,
 	NUMCOLS
 };
 
@@ -172,15 +174,18 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 {
 	XRRScreenChangeNotifyEvent *rre;
 	char buf[32], passwd[256], *inputhash;
-	int num, screen, running, failure, oldc;
-	unsigned int len, color;
+	int num, screen, running, failure, oldc, caps;
+	unsigned int len, color, indicators;
 	KeySym ksym;
 	XEvent ev;
 
 	len = 0;
+	caps = 0;
 	running = 1;
 	failure = 0;
 	oldc = INIT;
+	if (!XkbGetIndicatorState(dpy, XkbUseCoreKbd, &indicators))
+		caps = indicators & 1;
 
 	while (running && !XNextEvent(dpy, &ev)) {
 		if (ev.type == KeyPress) {
@@ -221,6 +226,9 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				if (len)
 					passwd[--len] = '\0';
 				break;
+			case XK_Caps_Lock:
+				caps = !caps;
+				break;
 			default:
 				if (num && !iscntrl((int)buf[0]) &&
 				    (len + num < sizeof(passwd))) {
@@ -229,7 +237,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				}
 				break;
 			}
-			color = len ? INPUT : ((failure || failonclear) ? FAILED : INIT);
+			color = len ? (caps ? CAPSLOCK : INPUT) : ((failure || failonclear) ? FAILED : INIT);
 			if (running && oldc != color) {
 				for (screen = 0; screen < nscreens; screen++) {
 					drawlogo(dpy, locks[screen], color);
@@ -380,7 +388,8 @@ usage(void)
 }
 
 int
-main(int argc, char **argv) {
+main(int argc, char **argv)
+{
 	struct xrandr rr;
 	struct lock **locks;
 	struct passwd *pwd;
