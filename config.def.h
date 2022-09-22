@@ -9,10 +9,14 @@ static const char *colorname[NUMCOLS] = {
 	[FAILED] = "#CC3333",   /* wrong password */
 	[CAPSLOCK] = "#FFA500", /* capslock pressed */
 	[CAPSLOCK_ALT] = "#FFC722", /* capslock pressed, second color */
+	[PAM] =    "#9400D3",   /* waiting for PAM */
 };
 
 /* treat a cleared input like a wrong password (color) */
 static const int failonclear = 0;
+
+/* PAM service that's used for authentication */
+static const char* pam_service = "login";
 
 /* insert grid pattern with scale 1:1, the size can be changed with logosize */
 static const int logosize = 75;
