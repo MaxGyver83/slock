@@ -185,6 +185,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 	caps = 0;
 	running = 1;
 	failure = 0;
+	color = INIT;
 	oldc = INIT;
 	if (!XkbGetIndicatorState(dpy, XkbUseCoreKbd, &indicators))
 		caps = indicators & 1;
@@ -223,6 +224,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 			case XK_Escape:
 				explicit_bzero(&passwd, sizeof(passwd));
 				len = 0;
+				failure = 0;
 				break;
 			case XK_BackSpace:
 				if (len)
@@ -239,9 +241,15 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				}
 				break;
 			}
-			color = len ? (caps ? (len%2 ? CAPSLOCK : CAPSLOCK_ALT)
-			                    : (len%2 ? INPUT : INPUT_ALT))
-			            : ((failure || failonclear) ? FAILED : INIT);
+			if (len)
+				color = caps ? ((color == CAPSLOCK_ALT) ? CAPSLOCK : CAPSLOCK_ALT)
+				             : ((color == INPUT_ALT) ? INPUT : INPUT_ALT);
+			else if (failure || failonclear)
+				color = FAILED;
+			else if (caps)
+				color = (color == CAPSLOCK_ALT) ? CAPSLOCK : CAPSLOCK_ALT;
+			else
+				color = INIT;
 			if (running && oldc != color) {
 				for (screen = 0; screen < nscreens; screen++) {
 					drawlogo(dpy, locks[screen], color);
