@@ -225,6 +225,11 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				explicit_bzero(&passwd, sizeof(passwd));
 				len = 0;
 				failure = 0;
+				int current_caps = caps;
+				if (!XkbGetIndicatorState(dpy, XkbUseCoreKbd, &indicators))
+					caps = indicators & 1;
+				if (caps != current_caps)
+					printf("Warning: caps was wrong! Now caps=%i.\n", caps);
 				break;
 			case XK_BackSpace:
 				if (len)
