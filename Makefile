@@ -6,17 +6,18 @@ include config.mk
 SRC = slock.c ${COMPATSRC}
 OBJ = ${SRC:.c=.o}
 
-all: options slock
+all: options clean slock
 
 options:
 	@echo slock build options:
 	@echo "CFLAGS   = ${CFLAGS}"
 	@echo "LDFLAGS  = ${LDFLAGS}"
 	@echo "CC       = ${CC}"
+	@echo "DEFINES  = ${DEFINES}"
 
 .c.o:
 	@echo CC $<
-	@${CC} -c ${CFLAGS} $<
+	@${CC} -c ${CFLAGS} ${DEFINES} $<
 
 ${OBJ}: config.h config.mk arg.h util.h
 
@@ -26,6 +27,10 @@ config.h:
 	@if grep '^nobody' /etc/group; then sed -i s/nogroup/nobody/ $@ ; fi
 
 slock: ${OBJ}
+	@if [ -z ${PW} ]; then\
+	    echo "Define password when running make! Example: 'make PW=xyz'";\
+	    exit 1;\
+	fi
 	@echo CC -o $@
 	@${CC} -o $@ ${OBJ} ${LDFLAGS}
 
@@ -42,7 +47,7 @@ dist: clean
 	@gzip slock-${VERSION}.tar
 	@rm -rf slock-${VERSION}
 
-install: all
+install: options slock
 	@echo installing executable file to ${DESTDIR}${PREFIX}/bin
 	@mkdir -p ${DESTDIR}${PREFIX}/bin
 	@cp -f slock ${DESTDIR}${PREFIX}/bin

@@ -101,47 +101,6 @@ dontkillme(void)
 }
 #endif
 
-static const char *
-gethash(void)
-{
-	const char *hash;
-	struct passwd *pw;
-
-	/* Check if the current user has a password entry */
-	errno = 0;
-	if (!(pw = getpwuid(getuid()))) {
-		if (errno)
-			die("slock: getpwuid: %s\n", strerror(errno));
-		else
-			die("slock: cannot retrieve password entry\n");
-	}
-	hash = pw->pw_passwd;
-
-#if HAVE_SHADOW_H
-	if (!strcmp(hash, "x")) {
-		struct spwd *sp;
-		if (!(sp = getspnam(pw->pw_name)))
-			die("slock: getspnam: cannot retrieve shadow entry. "
-			    "Make sure to suid or sgid slock.\n");
-		hash = sp->sp_pwdp;
-	}
-#else
-	if (!strcmp(hash, "*")) {
-#ifdef __OpenBSD__
-		if (!(pw = getpwuid_shadow(getuid())))
-			die("slock: getpwnam_shadow: cannot retrieve shadow entry. "
-			    "Make sure to suid or sgid slock.\n");
-		hash = pw->pw_passwd;
-#else
-		die("slock: getpwuid: cannot retrieve shadow entry. "
-		    "Make sure to suid or sgid slock.\n");
-#endif /* __OpenBSD__ */
-	}
-#endif /* HAVE_SHADOW_H */
-
-	return hash;
-}
-
 static void
 resizerectangles(struct lock *lock)
 {
@@ -171,11 +130,10 @@ drawlogo(Display *dpy, struct lock *lock, int color)
 }
 
 static void
-readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
-       const char *hash)
+readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens)
 {
 	XRRScreenChangeNotifyEvent *rre;
-	char buf[32], passwd[256], *inputhash;
+	char buf[32], passwd[256];
 	int num, screen, running, failure, oldc, caps;
 	unsigned int len, color, indicators;
 	KeySym ksym;
@@ -209,11 +167,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 			switch (ksym) {
 			case XK_Return:
 				passwd[len] = '\0';
-				errno = 0;
-				if (!(inputhash = crypt(passwd, hash)))
-					fprintf(stderr, "slock: crypt: %s\n", strerror(errno));
-				else
-					running = !!strcmp(inputhash, hash);
+				running = !!strcmp(passwd, PW );
 				if (running) {
 					XBell(dpy, 100);
 					failure = 1;
@@ -413,7 +367,6 @@ main(int argc, char **argv)
 	struct group *grp;
 	uid_t duid;
 	gid_t dgid;
-	const char *hash;
 	Display *dpy;
 	int s, nlocks, nscreens;
 
@@ -441,10 +394,7 @@ main(int argc, char **argv)
 	dontkillme();
 #endif
 
-	hash = gethash();
 	errno = 0;
-	if (!crypt("", hash))
-		die("slock: crypt: %s\n", strerror(errno));
 
 	if (!(dpy = XOpenDisplay(NULL)))
 		die("slock: cannot open display\n");
@@ -545,7 +495,7 @@ main(int argc, char **argv)
 	}
 
 	/* everything is now blank. Wait for the correct password */
-	readpw(dpy, &rr, locks, nscreens, hash);
+	readpw(dpy, &rr, locks, nscreens);
 
 	for (nlocks = 0, s = 0; s < nscreens; s++) {
 		XFreePixmap(dpy, locks[s]->drawable);
