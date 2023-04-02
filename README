@@ -8,8 +8,13 @@ This is my personal fork with these changes (on the 'custom' branch):
 - Change default color from black to gray
 - Red dwm logo only after wrong password (not after Escape)
 - Orange dwm logo when CapsLock is pressed (based on 'capscolor' patch)
+- Orange dwm logo also after Escape (when CapsLock is pressed)
 - Alternate color during password input: shades of blue (or orange)
 - Makefile: Use group 'nobody' instead of 'nogroup' when available (Arch Linux)
+
+Additional change on branch 'custom-set-password':
+
+- Use custom password instead of login password. Build with 'make PW=xyz'.
 
 
 Requirements
