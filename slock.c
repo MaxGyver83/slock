@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <X11/extensions/Xrandr.h>
@@ -158,14 +159,21 @@ resizerectangles(struct lock *lock)
 }
 
 static void
-drawlogo(Display *dpy, struct lock *lock, int color)
+drawlogo(Display *dpy, struct lock *lock, int color, int len)
 {
 	/*
 	XSetForeground(dpy, lock->gc, lock->colors[BACKGROUND]);
 	XFillRectangle(dpy, lock->drawable, lock->gc, 0, 0, lock->x, lock->y); */
 	lock->drawable = lock->bgmap;
-	XSetForeground(dpy, lock->gc, lock->colors[color]);
-	XFillRectangles(dpy, lock->drawable, lock->gc, lock->rectangles, LENGTH(rectangles));
+	if (color == INIT || color == FAILED || len == 0) {
+		XSetForeground(dpy, lock->gc, lock->colors[color]);
+		XFillRectangles(dpy, lock->drawable, lock->gc, lock->rectangles, LENGTH(rectangles));
+	} else {
+		for (int i = 0; i < LENGTH(rectangles); i++) {
+			XSetForeground(dpy, lock->gc, lock->colors[color + (rand() & 1)]);
+			XFillRectangles(dpy, lock->drawable, lock->gc, &lock->rectangles[i], 1);
+		}
+	}
 	XCopyArea(dpy, lock->drawable, lock->win, lock->gc, 0, 0, lock->x, lock->y, 0, 0);
 	XSync(dpy, False);
 }
@@ -176,7 +184,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 {
 	XRRScreenChangeNotifyEvent *rre;
 	char buf[32], passwd[256], *inputhash;
-	int num, screen, running, failure, oldc, caps;
+	int num, screen, running, failure, caps;
 	unsigned int len, color, indicators;
 	KeySym ksym;
 	XEvent ev;
@@ -186,7 +194,6 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 	running = 1;
 	failure = 0;
 	color = INIT;
-	oldc = INIT;
 	if (!XkbGetIndicatorState(dpy, XkbUseCoreKbd, &indicators))
 		caps = indicators & 1;
 
@@ -237,6 +244,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				break;
 			case XK_Caps_Lock:
 				caps = !caps;
+				failure = 0;
 				break;
 			default:
 				if (num && !iscntrl((int)buf[0]) &&
@@ -247,19 +255,17 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				break;
 			}
 			if (len)
-				color = caps ? ((color == CAPSLOCK_ALT) ? CAPSLOCK : CAPSLOCK_ALT)
-				             : ((color == INPUT_ALT) ? INPUT : INPUT_ALT);
+				color = caps ? CAPSLOCK : INPUT;
 			else if (failure || failonclear)
 				color = FAILED;
 			else if (caps)
-				color = (color == CAPSLOCK_ALT) ? CAPSLOCK : CAPSLOCK_ALT;
+				color = CAPSLOCK;
 			else
 				color = INIT;
-			if (running && oldc != color) {
+			if (running) {
 				for (screen = 0; screen < nscreens; screen++) {
-					drawlogo(dpy, locks[screen], color);
+					drawlogo(dpy, locks[screen], color, len);
 				}
-				oldc = color;
 			}
 		} else if (rr->active && ev.type == rr->evbase + RRScreenChangeNotify) {
 			rre = (XRRScreenChangeNotifyEvent*)&ev;
@@ -376,7 +382,7 @@ lockscreen(Display *dpy, struct xrandr *rr, int screen)
 				XRRSelectInput(dpy, lock->win, RRScreenChangeNotifyMask);
 
 			XSelectInput(dpy, lock->root, SubstructureNotifyMask);
-			drawlogo(dpy, lock, INIT);
+			drawlogo(dpy, lock, INIT, 0);
 			return lock;
 		}
 
@@ -544,6 +550,7 @@ main(int argc, char **argv)
 		}
 	}
 
+	srand(time(NULL));
 	/* everything is now blank. Wait for the correct password */
 	readpw(dpy, &rr, locks, nscreens, hash);
 
